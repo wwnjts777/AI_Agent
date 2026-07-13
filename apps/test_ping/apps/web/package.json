@@ -1,0 +1,18 @@
+{
+  "name": "@netwatch/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port ${WEB_PORT:-4100}",
+    "build": "vite build",
+    "lint": "vite build --mode development --outDir /tmp/netwatch-web-lint",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.19",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

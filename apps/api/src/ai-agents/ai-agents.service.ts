@@ -251,6 +251,290 @@ export class AiAgentsService {
     ].join("\n");
   }
 
+  private netWatchTaskCommand(prompt: string) {
+    const match = prompt.match(/\b(NW-\d{3})\b/iu);
+    if (!match) return undefined;
+    const normalized = prompt.toLowerCase();
+    if (!/(mulai|kerjakan|jalankan|review|perbaiki|fix)/iu.test(normalized)) return undefined;
+    return {
+      taskId: match[1].toUpperCase(),
+      action: normalized.includes("review") ? "review" : normalized.includes("perbaiki") || normalized.includes("fix") ? "fix" : "start"
+    };
+  }
+
+  private netWatchRoot() {
+    return resolve(this.workspaceBase(), "apps/test_ping");
+  }
+
+  private async writeIfMissing(path: string, content: string) {
+    try {
+      await stat(path);
+      return false;
+    } catch {
+      await mkdir(resolve(path, ".."), { recursive: true });
+      await writeFile(path, content);
+      return true;
+    }
+  }
+
+  private async scaffoldNetWatchNw001() {
+    const root = this.netWatchRoot();
+    const files: Array<[string, string]> = [
+      [
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "@netwatch/root",
+            private: true,
+            version: "0.1.0",
+            scripts: {
+              dev: "pnpm -r --parallel dev",
+              build: "pnpm -r build",
+              lint: "pnpm -r lint",
+              test: "pnpm -r test"
+            },
+            packageManager: "pnpm@9.15.0"
+          },
+          null,
+          2
+        )}\n`
+      ],
+      ["pnpm-workspace.yaml", "packages:\n  - apps/*\n  - packages/*\n"],
+      [
+        ".env.example",
+        "API_PORT=4101\nWEB_PORT=4100\nVITE_API_URL=http://localhost:4101\n"
+      ],
+      [
+        ".gitignore",
+        "node_modules\ndist\n.env\n*.db\n*.db-shm\n*.db-wal\n"
+      ],
+      [
+        "README.md",
+        [
+          "# NetWatch",
+          "",
+          "Web-based IP monitoring dashboard.",
+          "",
+          "## Development",
+          "",
+          "```bash",
+          "pnpm install",
+          "pnpm dev",
+          "```",
+          "",
+          "API health endpoint:",
+          "",
+          "```text",
+          "GET http://localhost:4101/health",
+          "```",
+          ""
+        ].join("\n")
+      ],
+      [
+        "apps/api/package.json",
+        `${JSON.stringify(
+          {
+            name: "@netwatch/api",
+            private: true,
+            version: "0.1.0",
+            type: "module",
+            scripts: {
+              dev: "node --watch src/server.js",
+              build: "node --check src/server.js",
+              lint: "node --check src/server.js",
+              test: "NODE_ENV=test node --test"
+            },
+            dependencies: {
+              cors: "^2.8.5",
+              express: "^4.19.2"
+            },
+            devDependencies: {
+              "@types/node": "^20.18.2"
+            }
+          },
+          null,
+          2
+        )}\n`
+      ],
+      [
+        "apps/api/src/server.js",
+        [
+          "import cors from \"cors\";",
+          "import express from \"express\";",
+          "",
+          "export function createApp() {",
+          "  const app = express();",
+          "  app.use(cors());",
+          "  app.use(express.json());",
+          "",
+          "  app.get(\"/health\", (_request, response) => {",
+          "    response.json({ status: \"ok\", service: \"netwatch-api\" });",
+          "  });",
+          "",
+          "  return app;",
+          "}",
+          "",
+          "if (process.env.NODE_ENV !== \"test\") {",
+          "  const port = Number(process.env.API_PORT ?? 4101);",
+          "  createApp().listen(port, () => {",
+          "    console.log(`netwatch-api listening on ${port}`);",
+          "  });",
+          "}",
+          ""
+        ].join("\n")
+      ],
+      [
+        "apps/api/test/health.test.js",
+        [
+          "import assert from \"node:assert/strict\";",
+          "import test from \"node:test\";",
+          "import { createApp } from \"../src/server.js\";",
+          "",
+          "test(\"GET /health returns ok\", async () => {",
+          "  const server = createApp().listen(0);",
+          "  const address = server.address();",
+          "  try {",
+          "    const response = await fetch(`http://127.0.0.1:${address.port}/health`);",
+          "    assert.equal(response.status, 200);",
+          "    assert.deepEqual(await response.json(), { status: \"ok\", service: \"netwatch-api\" });",
+          "  } finally {",
+          "    server.close();",
+          "  }",
+          "});",
+          ""
+        ].join("\n")
+      ],
+      [
+        "apps/web/package.json",
+        `${JSON.stringify(
+          {
+            name: "@netwatch/web",
+            private: true,
+            version: "0.1.0",
+            type: "module",
+            scripts: {
+              dev: "vite --host 0.0.0.0 --port ${WEB_PORT:-4100}",
+              build: "vite build",
+              lint: "vite build --mode development --outDir /tmp/netwatch-web-lint",
+              test: "node --test"
+            },
+            dependencies: {
+              "@vitejs/plugin-react": "^4.3.4",
+              vite: "^5.4.19",
+              react: "^18.3.1",
+              "react-dom": "^18.3.1"
+            }
+          },
+          null,
+          2
+        )}\n`
+      ],
+      [
+        "apps/web/index.html",
+        "<!doctype html>\n<html lang=\"id\">\n  <head><meta charset=\"UTF-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /><title>NetWatch</title></head>\n  <body><div id=\"root\"></div><script type=\"module\" src=\"/src/main.jsx\"></script></body>\n</html>\n"
+      ],
+      [
+        "apps/web/src/main.jsx",
+        [
+          "import React from \"react\";",
+          "import { createRoot } from \"react-dom/client\";",
+          "import \"./styles.css\";",
+          "",
+          "function App() {",
+          "  return (",
+          "    <main className=\"app-shell\">",
+          "      <section className=\"hero\">",
+          "        <p>NetWatch</p>",
+          "        <h1>Dashboard monitoring IP</h1>",
+          "        <span>Project setup siap. Lanjutkan task NW-002 untuk quality foundation.</span>",
+          "      </section>",
+          "    </main>",
+          "  );",
+          "}",
+          "",
+          "createRoot(document.getElementById(\"root\")).render(<App />);",
+          ""
+        ].join("\n")
+      ],
+      [
+        "apps/web/src/styles.css",
+        [
+          ":root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #eef2f6; color: #152238; }",
+          "body { margin: 0; }",
+          ".app-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }",
+          ".hero { width: min(720px, 100%); border: 1px solid #d8e0ea; border-radius: 8px; background: #fff; padding: 28px; box-shadow: 0 16px 44px rgb(21 34 56 / 10%); }",
+          ".hero p { margin: 0 0 10px; color: #00897b; font-weight: 700; }",
+          ".hero h1 { margin: 0 0 14px; font-size: 34px; }",
+          ".hero span { color: #516173; }",
+          ""
+        ].join("\n")
+      ],
+      ["apps/web/test/basic.test.js", "import test from \"node:test\";\n\ntest(\"web test placeholder\", () => {});\n"],
+      ["packages/.gitkeep", ""],
+      ["docs/requirements/NW-001.md", "# NW-001 Project Setup\n\nAcceptance Criteria mengikuti NetWatch_3_Agent_Step_by_Step.md.\n"],
+      [
+        "docs/handoffs/NW-001-agent-a.md",
+        [
+          "# Agent A Handoff",
+          "",
+          "Task ID: NW-001",
+          "Status: Ready for Review",
+          "",
+          "## Yang Dikerjakan",
+          "",
+          "- Membuat struktur workspace NetWatch di apps/test_ping.",
+          "- Menambahkan API Express dengan endpoint GET /health.",
+          "- Menambahkan frontend React + Vite awal.",
+          "- Menambahkan README, .env.example, dan script root.",
+          "",
+          "## Test",
+          "",
+          "- pnpm lint: belum dijalankan oleh bot runtime",
+          "- pnpm test: belum dijalankan oleh bot runtime",
+          "- pnpm build: belum dijalankan oleh bot runtime",
+          "",
+          "## Catatan",
+          "",
+          "Jalankan pemeriksaan lokal sebelum Agent_B review.",
+          ""
+        ].join("\n")
+      ]
+    ];
+
+    const created: string[] = [];
+    for (const [relativePath, content] of files) {
+      const didCreate = await this.writeIfMissing(resolve(root, relativePath), content);
+      if (didCreate) created.push(relativePath);
+    }
+    return created;
+  }
+
+  private async netWatchWorkflowAnswer(agentName: string, prompt: string, agent: { workspaceAccess: boolean; workspaceRoot: string | null }) {
+    if (!agent.workspaceAccess) return undefined;
+    const command = this.netWatchTaskCommand(prompt);
+    if (!command) return undefined;
+    if (command.taskId !== "NW-001") {
+      return `${agentName} sudah membaca workflow NetWatch. Untuk saat ini eksekusi otomatis baru tersedia untuk NW-001.`;
+    }
+    if (command.action === "review") {
+      return `${agentName} mode review: jalankan Agent_B review setelah Agent_A membuat NW-001 dan semua test lokal dijalankan.`;
+    }
+    if (command.action === "fix") {
+      return `${agentName} mode fix: Agent_C membutuhkan laporan review Agent_B sebelum memperbaiki NW-001.`;
+    }
+    if (agentName !== "Agent_A") {
+      return `Task NW-001 harus dimulai oleh Agent_A. Gunakan: Agent_A mulai task NW-001`;
+    }
+    const created = await this.scaffoldNetWatchNw001();
+    return [
+      "Agent_A menjalankan task NW-001 Project Setup.",
+      created.length ? "File/folder yang dibuat:" : "Struktur NW-001 sudah ada, tidak ada file baru dibuat.",
+      ...created.map((file) => `- apps/test_ping/${file}`),
+      "",
+      "Langkah berikutnya: jalankan pnpm install, pnpm lint, pnpm test, dan pnpm build di apps/test_ping, lalu minta Agent_B review task NW-001."
+    ].join("\n");
+  }
+
   private requestedWorkspacePath(prompt: string) {
     const patterns = [
       /(?:folder|direktori|path)\s+([./]?[a-z0-9_./-]+)/iu,
@@ -601,6 +885,8 @@ export class AiAgentsService {
       agent ?? (await this.prisma.aiAgent.findFirst({ where: { isActive: true }, orderBy: { createdAt: "asc" } }));
     if (!fallbackAgent) return undefined;
     const selectedAgent = fallbackAgent;
+    const netWatchAnswer = await this.netWatchWorkflowAnswer(selectedAgent.name, prompt, selectedAgent);
+    if (netWatchAnswer) return netWatchAnswer;
     const folderCreationAnswer = await this.workspaceFolderCreationAnswer(selectedAgent.name, prompt, selectedAgent);
     if (folderCreationAnswer) return folderCreationAnswer;
     const listingAnswer = await this.workspaceListingAnswer(selectedAgent.name, prompt, selectedAgent, conversationContext);
