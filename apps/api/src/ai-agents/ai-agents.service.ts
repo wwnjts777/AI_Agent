@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@telegram-hub/database";
-import { readdir, readFile, stat } from "fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "fs/promises";
 import { basename, relative, resolve, sep } from "path";
 import { AuditService } from "../audit/audit.service";
 import { TokenCryptoService } from "../bots/token-crypto.service";
@@ -197,10 +197,58 @@ export class AiAgentsService {
 
   private folderListingRequest(prompt: string) {
     const normalized = prompt.toLowerCase();
+    if (this.folderCreationRequest(normalized)) return false;
     return (
       /(sebutkan|tampilkan|lihatkan|list|daftar).*(isi|file|folder|struktur|workspace|direktori)/iu.test(normalized) ||
       /(isi|file|folder|struktur|workspace|direktori).*(aplikasi|project|proyek|workspace)/iu.test(normalized)
     );
+  }
+
+  private folderCreationRequest(prompt: string) {
+    return /(buat|buatkan|tambahkan|create|add).*(folder|direktori)/iu.test(prompt);
+  }
+
+  private requestedFolderName(prompt: string) {
+    const patterns = [
+      /nama\s+folder(?:nya)?\s+([a-z0-9_.-]+)/iu,
+      /folder(?:nya)?\s+([a-z0-9_.-]+)$/iu
+    ];
+    for (const pattern of patterns) {
+      const raw = prompt.match(pattern)?.[1]?.trim().replace(/[.,;:!?]+$/u, "");
+      if (!raw) continue;
+      const normalized = raw.replace(/^\/+|\/+$/gu, "");
+      if (/^[a-z0-9_.-]+$/iu.test(normalized) && !["folder", "direktori", "aplikasi"].includes(normalized.toLowerCase())) {
+        return normalized;
+      }
+    }
+    return undefined;
+  }
+
+  private async workspaceFolderCreationAnswer(
+    agentName: string,
+    prompt: string,
+    agent: { workspaceAccess: boolean; workspaceRoot: string | null }
+  ) {
+    if (!agent.workspaceAccess || !this.folderCreationRequest(prompt)) return undefined;
+    const folderName = this.requestedFolderName(prompt);
+    if (!folderName) {
+      return `${agentName} belum menemukan nama folder yang valid. Ulangi dengan format: ${agentName} buatkan folder dengan nama coba`;
+    }
+
+    const baseRoot = this.workspaceRoot(agent.workspaceRoot);
+    const target = resolve(baseRoot, folderName);
+    const relativePath = this.workspaceRelative(target);
+    if (!relativePath || this.ignoredWorkspacePath(target) || folderName.includes("..")) {
+      return `${agentName} tidak bisa membuat folder "${folderName}" karena path tidak aman atau termasuk folder yang dilarang.`;
+    }
+
+    await mkdir(target, { recursive: true });
+    await writeFile(resolve(target, ".gitkeep"), "", { flag: "a" });
+    return [
+      `${agentName} sudah membuat folder.`,
+      `Path: ${relativePath}`,
+      "File penjaga: .gitkeep"
+    ].join("\n");
   }
 
   private requestedWorkspacePath(prompt: string) {
@@ -553,6 +601,8 @@ export class AiAgentsService {
       agent ?? (await this.prisma.aiAgent.findFirst({ where: { isActive: true }, orderBy: { createdAt: "asc" } }));
     if (!fallbackAgent) return undefined;
     const selectedAgent = fallbackAgent;
+    const folderCreationAnswer = await this.workspaceFolderCreationAnswer(selectedAgent.name, prompt, selectedAgent);
+    if (folderCreationAnswer) return folderCreationAnswer;
     const listingAnswer = await this.workspaceListingAnswer(selectedAgent.name, prompt, selectedAgent, conversationContext);
     if (listingAnswer) return listingAnswer;
     const apiKey = this.crypto.decrypt({
