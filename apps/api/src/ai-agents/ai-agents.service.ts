@@ -181,6 +181,23 @@ export class AiAgentsService {
     );
   }
 
+  private requestedWorkspacePath(prompt: string) {
+    const patterns = [
+      /(?:folder|direktori|path)\s+([./]?[a-z0-9_./-]+)/iu,
+      /(?:di|dalam)\s+([./]?[a-z0-9_./-]+)/iu
+    ];
+    for (const pattern of patterns) {
+      const match = prompt.match(pattern);
+      const raw = match?.[1]?.trim().replace(/[.,;:!?]+$/u, "");
+      if (!raw || ["folder", "direktori", "path", "aplikasi", "project", "proyek", "workspace"].includes(raw.toLowerCase())) {
+        continue;
+      }
+      const normalized = raw.replace(/^\/+/u, "");
+      if (normalized && !normalized.includes("..")) return normalized;
+    }
+    return undefined;
+  }
+
   private formatFileTree(files: string[]) {
     const tree: Record<string, unknown> = {};
     for (const file of files) {
@@ -207,7 +224,9 @@ export class AiAgentsService {
 
   private async workspaceListingAnswer(agentName: string, prompt: string, agent: { workspaceAccess: boolean; workspaceRoot: string | null }) {
     if (!agent.workspaceAccess || !this.folderListingRequest(prompt)) return undefined;
-    const root = this.workspaceRoot(agent.workspaceRoot);
+    const baseRoot = this.workspaceRoot(agent.workspaceRoot);
+    const requestedPath = this.requestedWorkspacePath(prompt);
+    const root = requestedPath ? this.workspaceRoot(requestedPath) : baseRoot;
     const files = await this.workspaceFiles(root);
     const rootLabel = relative(this.workspaceBase(), root) || ".";
     const visibleFiles = files.slice(0, 160);
