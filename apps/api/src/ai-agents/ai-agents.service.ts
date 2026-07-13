@@ -159,7 +159,12 @@ export class AiAgentsService {
 
   private async workspaceFiles(root: string, current = root, files: string[] = []) {
     if (files.length >= 300) return files;
-    const entries = await readdir(current, { withFileTypes: true });
+    let entries: Array<{ name: string; isDirectory(): boolean }>;
+    try {
+      entries = (await readdir(current, { withFileTypes: true })) as Array<{ name: string; isDirectory(): boolean }>;
+    } catch {
+      return files;
+    }
     for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
       const absolute = resolve(current, entry.name);
       if (this.ignoredWorkspacePath(absolute)) continue;
@@ -171,6 +176,23 @@ export class AiAgentsService {
       if (files.length >= 300) break;
     }
     return files;
+  }
+
+  private workspaceRelative(absolute: string) {
+    const base = this.workspaceBase();
+    const relativePath = relative(base, absolute);
+    if (relativePath.startsWith("..") || relativePath === ".." || relativePath.split(sep).includes("..")) return undefined;
+    return relativePath || ".";
+  }
+
+  private async isReadableWorkspaceDirectory(absolute: string) {
+    const relativePath = this.workspaceRelative(absolute);
+    if (!relativePath || this.ignoredWorkspacePath(absolute)) return false;
+    try {
+      return (await stat(absolute)).isDirectory();
+    } catch {
+      return false;
+    }
   }
 
   private folderListingRequest(prompt: string) {
@@ -192,10 +214,47 @@ export class AiAgentsService {
       if (!raw || ["folder", "direktori", "path", "aplikasi", "project", "proyek", "workspace"].includes(raw.toLowerCase())) {
         continue;
       }
-      const normalized = raw.replace(/^\/+/u, "");
+      const normalized = raw.replace(/^\/+|\/+$/gu, "");
       if (normalized && !normalized.includes("..")) return normalized;
     }
     return undefined;
+  }
+
+  private previousWorkspaceRoot(conversationContext: ConversationTurn[]) {
+    for (const turn of [...conversationContext].reverse()) {
+      const match = turn.content.match(/Workspace root:\s*([^\n]+)/iu);
+      const root = match?.[1]?.trim();
+      if (root && root !== "." && !root.includes("..")) return root.replace(/^\/+/u, "");
+    }
+    return undefined;
+  }
+
+  private async resolveListingRoot(
+    requestedPath: string | undefined,
+    baseRoot: string,
+    conversationContext: ConversationTurn[]
+  ) {
+    if (!requestedPath) return { root: baseRoot };
+
+    const base = this.workspaceBase();
+    const previousRoot = this.previousWorkspaceRoot(conversationContext);
+    const candidates = [
+      previousRoot && !requestedPath.includes("/") ? resolve(base, previousRoot, requestedPath) : undefined,
+      resolve(base, requestedPath),
+      resolve(baseRoot, requestedPath)
+    ].filter(Boolean) as string[];
+
+    for (const candidate of [...new Set(candidates)]) {
+      if (await this.isReadableWorkspaceDirectory(candidate)) return { root: candidate };
+    }
+
+    const suggested = previousRoot && !requestedPath.includes("/") ? `${previousRoot}/${requestedPath}` : undefined;
+    return {
+      error: [
+        `Folder "${requestedPath}" tidak ditemukan atau tidak boleh dibaca.`,
+        suggested ? `Jika yang dimaksud folder sebelumnya, coba tulis: /${suggested}` : "Gunakan path lengkap, contoh: /apps/api/src atau /apps/web/app."
+      ].join("\n")
+    };
   }
 
   private formatFileTree(files: string[]) {
@@ -222,11 +281,25 @@ export class AiAgentsService {
     return lines;
   }
 
-  private async workspaceListingAnswer(agentName: string, prompt: string, agent: { workspaceAccess: boolean; workspaceRoot: string | null }) {
+  private async workspaceListingAnswer(
+    agentName: string,
+    prompt: string,
+    agent: { workspaceAccess: boolean; workspaceRoot: string | null },
+    conversationContext: ConversationTurn[]
+  ) {
     if (!agent.workspaceAccess || !this.folderListingRequest(prompt)) return undefined;
     const baseRoot = this.workspaceRoot(agent.workspaceRoot);
     const requestedPath = this.requestedWorkspacePath(prompt);
-    const root = requestedPath ? this.workspaceRoot(requestedPath) : baseRoot;
+    const resolvedRoot = await this.resolveListingRoot(requestedPath, baseRoot, conversationContext);
+    if (resolvedRoot.error || !resolvedRoot.root) {
+      return [
+        `${agentName} tidak bisa membaca folder yang diminta.`,
+        resolvedRoot.error ?? "Folder target tidak ditemukan.",
+        "",
+        "Catatan: folder runtime/rahasia seperti .git, node_modules, .next, dist, storage, .tools, dan coverage sengaja tidak dibaca."
+      ].join("\n");
+    }
+    const root = resolvedRoot.root;
     const files = await this.workspaceFiles(root);
     const rootLabel = relative(this.workspaceBase(), root) || ".";
     const visibleFiles = files.slice(0, 160);
@@ -480,7 +553,7 @@ export class AiAgentsService {
       agent ?? (await this.prisma.aiAgent.findFirst({ where: { isActive: true }, orderBy: { createdAt: "asc" } }));
     if (!fallbackAgent) return undefined;
     const selectedAgent = fallbackAgent;
-    const listingAnswer = await this.workspaceListingAnswer(selectedAgent.name, prompt, selectedAgent);
+    const listingAnswer = await this.workspaceListingAnswer(selectedAgent.name, prompt, selectedAgent, conversationContext);
     if (listingAnswer) return listingAnswer;
     const apiKey = this.crypto.decrypt({
       tokenCiphertext: selectedAgent.apiKeyCiphertext,
