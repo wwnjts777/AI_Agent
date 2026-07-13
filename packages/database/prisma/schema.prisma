@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         String     @default("ADMIN")
+  isActive     Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Bot {
+  id               String         @id @default(cuid())
+  name             String
+  telegramBotId    String?        @unique
+  username         String?
+  tokenCiphertext  String
+  tokenIv          String
+  tokenAuthTag     String
+  tokenLast4       String?
+  webhookSecret    String
+  webhookUrl       String?
+  isActive         Boolean        @default(true)
+  lastCheckedAt    DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  chats            TelegramChat[]
+}
+
+model AiAgent {
+  id                 String   @id @default(cuid())
+  name               String
+  provider           String   @default("OpenAI Compatible")
+  baseUrl            String
+  modelId            String
+  apiKeyCiphertext   String
+  apiKeyIv           String
+  apiKeyAuthTag      String
+  apiKeyLast4        String?
+  isActive           Boolean  @default(true)
+  workspaceAccess    Boolean  @default(false)
+  workspaceRoot      String?
+  lastCheckedAt      DateTime?
+  lastError          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model TelegramChat {
+  id                String    @id @default(cuid())
+  botId             String
+  telegramChatId    String
+  type              String    @default("PRIVATE")
+  firstName         String?
+  lastName          String?
+  username          String?
+  displayName       String?
+  lastMessageAt     DateTime?
+  lastReadAt        DateTime?
+  isBlocked         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  bot               Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  messages          Message[]
+
+  @@unique([botId, telegramChatId])
+  @@index([lastMessageAt])
+  @@index([username])
+}
+
+model Message {
+  id                  String       @id @default(cuid())
+  chatId              String
+  telegramUpdateId    String?      @unique
+  telegramMessageId   String?
+  clientRequestId     String?      @unique
+  direction           String
+  type                String       @default("TEXT")
+  content             String?
+  telegramFileId      String?
+  fileName            String?
+  mimeType            String?
+  fileSize            Int?
+  localFilePath       String?
+  status              String
+  errorCode           String?
+  errorMessage        String?
+  sentByUserId        String?
+  telegramCreatedAt   DateTime?
+  sentAt              DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  chat                TelegramChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@index([chatId, status])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  targetType  String?
+  targetId    String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

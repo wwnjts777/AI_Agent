@@ -1,0 +1,27 @@
+{
+  "name": "@telegram-hub/database",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate": "prisma generate --schema prisma/schema.prisma",
+    "migrate": "tsx prisma/migrate.ts",
+    "seed": "tsx prisma/seed.ts",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.15",
+    "@prisma/client": "^6.2.1",
+    "argon2": "^0.41.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

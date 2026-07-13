@@ -1,0 +1,9 @@
+process.env.NODE_ENV = "test";
+process.env.DATABASE_URL = "file:./test.db";
+process.env.JWT_ACCESS_SECRET = "test-secret";
+process.env.COOKIE_NAME = "telegram_hub_session";
+process.env.COOKIE_SECURE = "false";
+process.env.WEB_URL = "http://localhost:3000";
+process.env.API_PUBLIC_URL = "https://api.example.test";
+process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+process.env.TELEGRAM_REQUEST_TIMEOUT_MS = "1000";

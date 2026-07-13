@@ -1,0 +1,24 @@
+{
+  "name": "telegram-web-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram Web Communication Hub MVP",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "pnpm --parallel dev",
+    "dev:api": "pnpm --filter @telegram-hub/api dev",
+    "dev:web": "pnpm --filter @telegram-hub/web dev",
+    "build": "pnpm --filter @telegram-hub/database generate && pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm --filter @telegram-hub/api test",
+    "db:generate": "pnpm --filter @telegram-hub/database generate",
+    "db:migrate": "pnpm --filter @telegram-hub/database migrate",
+    "db:seed": "pnpm --filter @telegram-hub/database seed",
+    "backup": "pnpm --filter @telegram-hub/api backup"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  }
+}
