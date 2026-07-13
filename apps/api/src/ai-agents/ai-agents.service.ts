@@ -158,7 +158,7 @@ export class AiAgentsService {
   }
 
   private async workspaceFiles(root: string, current = root, files: string[] = []) {
-    if (files.length >= 120) return files;
+    if (files.length >= 300) return files;
     const entries = await readdir(current, { withFileTypes: true });
     for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
       const absolute = resolve(current, entry.name);
@@ -168,9 +168,63 @@ export class AiAgentsService {
       } else if (/\.(ts|tsx|js|jsx|json|css|md|prisma|sql)$/i.test(entry.name)) {
         files.push(relative(root, absolute));
       }
-      if (files.length >= 120) break;
+      if (files.length >= 300) break;
     }
     return files;
+  }
+
+  private folderListingRequest(prompt: string) {
+    const normalized = prompt.toLowerCase();
+    return (
+      /(sebutkan|tampilkan|lihatkan|list|daftar).*(isi|file|folder|struktur|workspace|direktori)/iu.test(normalized) ||
+      /(isi|file|folder|struktur|workspace|direktori).*(aplikasi|project|proyek|workspace)/iu.test(normalized)
+    );
+  }
+
+  private formatFileTree(files: string[]) {
+    const tree: Record<string, unknown> = {};
+    for (const file of files) {
+      const parts = file.split(/[\\/]+/u).filter(Boolean);
+      let cursor = tree;
+      for (const [index, part] of parts.entries()) {
+        const key = index === parts.length - 1 ? part : `${part}/`;
+        cursor[key] ??= {};
+        cursor = cursor[key] as Record<string, unknown>;
+      }
+    }
+
+    const lines: string[] = [];
+    const walk = (node: Record<string, unknown>, depth = 0) => {
+      for (const key of Object.keys(node).sort((left, right) => left.localeCompare(right))) {
+        lines.push(`${"  ".repeat(depth)}- ${key}`);
+        const child = node[key] as Record<string, unknown>;
+        if (key.endsWith("/")) walk(child, depth + 1);
+      }
+    };
+    walk(tree);
+    return lines;
+  }
+
+  private async workspaceListingAnswer(agentName: string, prompt: string, agent: { workspaceAccess: boolean; workspaceRoot: string | null }) {
+    if (!agent.workspaceAccess || !this.folderListingRequest(prompt)) return undefined;
+    const root = this.workspaceRoot(agent.workspaceRoot);
+    const files = await this.workspaceFiles(root);
+    const rootLabel = relative(this.workspaceBase(), root) || ".";
+    const visibleFiles = files.slice(0, 160);
+    const hiddenCount = files.length - visibleFiles.length;
+    const tree = this.formatFileTree(visibleFiles);
+    return [
+      `${agentName} membaca langsung folder aplikasi dari server.`,
+      `Workspace root: ${rootLabel}`,
+      "",
+      "Daftar file yang dapat dibaca:",
+      ...(tree.length > 0 ? tree : ["- Tidak ada file yang cocok ditemukan."]),
+      hiddenCount > 0 ? `\nMasih ada ${hiddenCount} file lain yang tidak ditampilkan agar pesan tidak terlalu panjang.` : "",
+      "",
+      "Catatan: folder runtime/rahasia seperti .git, node_modules, .next, dist, storage, .tools, dan coverage sengaja tidak dibaca."
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   private relevantFiles(prompt: string, files: string[]) {
@@ -407,6 +461,8 @@ export class AiAgentsService {
       agent ?? (await this.prisma.aiAgent.findFirst({ where: { isActive: true }, orderBy: { createdAt: "asc" } }));
     if (!fallbackAgent) return undefined;
     const selectedAgent = fallbackAgent;
+    const listingAnswer = await this.workspaceListingAnswer(selectedAgent.name, prompt, selectedAgent);
+    if (listingAnswer) return listingAnswer;
     const apiKey = this.crypto.decrypt({
       tokenCiphertext: selectedAgent.apiKeyCiphertext,
       tokenIv: selectedAgent.apiKeyIv,
