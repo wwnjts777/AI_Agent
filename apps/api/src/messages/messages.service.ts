@@ -36,6 +36,10 @@ export class MessagesService {
     this.events.emit("chat.updated", chat);
   }
 
+  private messageTimelineAt(message: Pick<Message, "telegramCreatedAt" | "sentAt" | "createdAt">) {
+    return message.telegramCreatedAt ?? message.sentAt ?? message.createdAt;
+  }
+
   private async botAnswerFor(
     text: string,
     agentName?: string,
@@ -191,7 +195,11 @@ export class MessagesService {
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: { createdAt: "desc" }
     });
-    return messages.reverse();
+    return messages.sort((left, right) => {
+      const leftTime = this.messageTimelineAt(left).getTime();
+      const rightTime = this.messageTimelineAt(right).getTime();
+      return leftTime - rightTime || left.createdAt.getTime() - right.createdAt.getTime();
+    });
   }
 
   async saveInbound(input: {
