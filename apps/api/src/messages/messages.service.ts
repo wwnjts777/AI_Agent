@@ -199,16 +199,16 @@ export class MessagesService {
       ? `bot-auto-tg-${input.telegramChatId}-${input.sourceTelegramMessageId}`
       : `bot-auto-${input.sourceMessageId}`;
 
-    if (!["NW-001", "NW-002"].includes(input.taskId)) {
+    const taskNumber = Number(input.taskId.match(/^NW-(\d{3})$/u)?.[1] ?? 0);
+    if (taskNumber < 1 || taskNumber > 20) {
       const fallback = byAgent.get("Agent_A") ?? responders[0];
       if (!fallback) return;
       await this.createAndSendBotReply({
         responder: fallback,
         clientRequestId: `${sourceKey}-unsupported-task`,
         answer: [
-          `Workflow otomatis ${input.taskId} belum tersedia.`,
-          "Task tetap harus mengikuti NetWatch_3_Agent_Step_by_Step.md.",
-          "Saat ini auto-run baru tersedia untuk NW-001 dan NW-002. Tambahkan implementasi task berikutnya dulu agar hasilnya tidak melenceng dari dokumen."
+          `Workflow otomatis ${input.taskId} tidak dikenali.`,
+          "Task valid NetWatch adalah NW-001 sampai NW-020 dan tetap harus mengikuti NetWatch_3_Agent_Step_by_Step.md."
         ].join("\n")
       });
       return;

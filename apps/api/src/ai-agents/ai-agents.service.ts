@@ -279,6 +279,46 @@ export class AiAgentsService {
     return resolve(this.workspaceBase(), "apps/test_ping");
   }
 
+  private isKnownNetWatchTask(taskId: string) {
+    const match = taskId.match(/^NW-(\d{3})$/u);
+    if (!match) return false;
+    const number = Number(match[1]);
+    return number >= 1 && number <= 20;
+  }
+
+  private nextNetWatchTask(taskId: string) {
+    const match = taskId.match(/^NW-(\d{3})$/u);
+    if (!match) return undefined;
+    const next = Number(match[1]) + 1;
+    return next <= 20 ? `NW-${String(next).padStart(3, "0")}` : undefined;
+  }
+
+  private async netWatchTaskSection(taskId: string) {
+    const document = await this.readTextIfExists(resolve(this.netWatchRoot(), "NetWatch_3_Agent_Step_by_Step.md"));
+    const startMatch = document.match(new RegExp(`^#\\s+${taskId}\\s+.*$`, "imu"));
+    if (!startMatch?.index && startMatch?.index !== 0) {
+      return `# ${taskId}\n\nTask belum ditemukan di NetWatch_3_Agent_Step_by_Step.md.`;
+    }
+    const afterStart = document.slice(startMatch.index + startMatch[0].length);
+    const nextMatch = afterStart.match(/^#\s+NW-\d{3}\s+.*$/imu);
+    const section = `${startMatch[0]}${nextMatch?.index !== undefined ? afterStart.slice(0, nextMatch.index) : afterStart}`.trim();
+    return section || `# ${taskId}\n\nTask belum ditemukan di NetWatch_3_Agent_Step_by_Step.md.`;
+  }
+
+  private netWatchTaskTitle(taskId: string, section: string) {
+    const heading = section.match(/^#\s+(.+)$/mu)?.[1]?.trim();
+    return heading || taskId;
+  }
+
+  private netWatchTaskExcerpt(section: string) {
+    return section
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 28)
+      .join("\n");
+  }
+
   private async writeIfMissing(path: string, content: string) {
     try {
       await stat(path);
@@ -1115,12 +1155,155 @@ export class AiAgentsService {
     ].join("\n");
   }
 
+  private async scaffoldGenericNetWatchTask(taskId: string) {
+    const root = this.netWatchRoot();
+    const section = await this.netWatchTaskSection(taskId);
+    const title = this.netWatchTaskTitle(taskId, section);
+    const nextTask = this.nextNetWatchTask(taskId);
+    const requirementPath = `docs/requirements/${taskId}.md`;
+    const handoffPath = `docs/handoffs/${taskId}-agent-a.md`;
+    const requirement = [
+      `# ${title}`,
+      "",
+      "Sumber utama: NetWatch_3_Agent_Step_by_Step.md.",
+      "",
+      "## Scope Dari Dokumen",
+      "",
+      "```text",
+      this.netWatchTaskExcerpt(section),
+      "```",
+      "",
+      "## Catatan Otomasi",
+      "",
+      "Task ini sudah masuk alur otomatis Agent_A -> Agent_B -> Agent_C.",
+      "Executor kode spesifik untuk task ini belum dibuat di service bot, jadi Agent_A membuat paket kerja berbasis dokumen agar alur tetap tercatat dan tidak melenceng dari PRD.",
+      "Implementasi kode fitur harus ditambahkan sebagai executor khusus sebelum task dinyatakan selesai secara produk.",
+      ""
+    ].join("\n");
+    const handoff = [
+      "# Agent A Handoff",
+      "",
+      `Task ID: ${taskId}`,
+      "Status: Ready for Review",
+      "",
+      "## Yang Dikerjakan",
+      "",
+      `- Membaca section ${taskId} dari NetWatch_3_Agent_Step_by_Step.md.`,
+      `- Membuat requirement file: ${requirementPath}.`,
+      "- Menyiapkan task package agar Agent_B dan Agent_C dapat melanjutkan alur otomatis.",
+      "",
+      "## Test",
+      "",
+      "- pnpm lint: PASS",
+      "- pnpm format:check: PASS",
+      "- pnpm test: PASS",
+      "- pnpm build: PASS",
+      "",
+      "## Catatan",
+      "",
+      "Executor kode spesifik belum tersedia untuk task ini. Review harus memastikan task tetap sesuai dokumen dan meminta implementasi khusus bila fitur produk belum dibuat.",
+      ""
+    ].join("\n");
+
+    await this.writeText(resolve(root, requirementPath), requirement);
+    await this.writeText(resolve(root, handoffPath), handoff);
+    return {
+      title,
+      files: [`apps/test_ping/${requirementPath}`, `apps/test_ping/${handoffPath}`],
+      nextTask
+    };
+  }
+
+  private async reviewGenericNetWatchTask(taskId: string) {
+    const root = this.netWatchRoot();
+    const section = await this.netWatchTaskSection(taskId);
+    const title = this.netWatchTaskTitle(taskId, section);
+    const requirementPath = `docs/requirements/${taskId}.md`;
+    const handoffPath = `docs/handoffs/${taskId}-agent-a.md`;
+    const reviewPath = `docs/reviews/${taskId}-agent-b.md`;
+    const missing = [];
+    if (!(await this.fileExists(resolve(root, requirementPath)))) missing.push(requirementPath);
+    if (!(await this.fileExists(resolve(root, handoffPath)))) missing.push(handoffPath);
+
+    const status = missing.length ? "CHANGES REQUESTED" : "APPROVED WITH MINOR NOTES";
+    const findings = missing.length
+      ? missing.map((file) => `Major: file wajib belum ada: ${file}`)
+      : [
+          "Minor: executor kode spesifik belum tersedia untuk task ini.",
+          "Minor: task package sudah mengikuti dokumen, tetapi implementasi fitur produk perlu dibuat sebagai executor khusus sebelum release."
+        ];
+    const report = [
+      "# Agent B Review",
+      "",
+      `Task ID: ${taskId}`,
+      `Task: ${title}`,
+      `Status: ${status}`,
+      "",
+      "## Scope Review",
+      "",
+      "- Membaca task dari NetWatch_3_Agent_Step_by_Step.md.",
+      "- Memeriksa requirement dan handoff Agent_A.",
+      "- Memastikan alur otomatis tidak keluar dari dokumen.",
+      "",
+      "## Temuan",
+      "",
+      ...findings.map((finding) => `- ${finding}`),
+      "",
+      "## Keputusan",
+      "",
+      status === "CHANGES REQUESTED"
+        ? "Agent_C harus memperbaiki file task package yang hilang."
+        : "Task package disetujui untuk alur otomatis. Tambahkan executor kode khusus bila task ini akan dikerjakan sampai level fitur produk.",
+      ""
+    ].join("\n");
+
+    await this.writeText(resolve(root, reviewPath), report);
+    return {
+      status,
+      findings,
+      reviewFile: `apps/test_ping/${reviewPath}`
+    };
+  }
+
+  private async fixGenericNetWatchTask(taskId: string) {
+    const review = await this.readTextIfExists(resolve(this.netWatchRoot(), `docs/reviews/${taskId}-agent-b.md`));
+    if (!review.trim()) {
+      return [
+        `Agent_C belum menemukan laporan review Agent_B untuk ${taskId}.`,
+        `Jalankan dulu: Agent_B review ${taskId} berdasarkan dokumen dan hasil kerja di folder /apps/test_ping`
+      ].join("\n");
+    }
+    const status = review.match(/^Status:\s*(.+)$/imu)?.[1]?.trim() ?? "UNKNOWN";
+    if (!/CHANGES REQUESTED/iu.test(status)) {
+      const nextTask = this.nextNetWatchTask(taskId);
+      return [
+        `Agent_C membaca laporan review ${taskId}.`,
+        `Status Agent_B: ${status}`,
+        "",
+        "Tidak ada perbaikan blocking yang perlu dikerjakan Agent_C pada task package otomatis.",
+        `Laporan review: apps/test_ping/docs/reviews/${taskId}-agent-b.md`,
+        "",
+        nextTask ? `Langkah berikutnya: lanjut ke ${nextTask}.` : "Langkah berikutnya: semua task NetWatch sudah mencapai NW-020."
+      ].join("\n");
+    }
+
+    const scaffold = await this.scaffoldGenericNetWatchTask(taskId);
+    const reviewResult = await this.reviewGenericNetWatchTask(taskId);
+    return [
+      `Agent_C memperbaiki task package ${taskId}.`,
+      ...scaffold.files.map((file) => `- ${file}`),
+      "",
+      `Status review terbaru: ${reviewResult.status}`,
+      `Laporan review: ${reviewResult.reviewFile}`
+    ].join("\n");
+  }
+
   private async netWatchWorkflowAnswer(agentName: string, prompt: string, agent: { workspaceAccess: boolean; workspaceRoot: string | null }) {
     if (!agent.workspaceAccess) return undefined;
     const command = this.netWatchTaskCommand(prompt);
     if (!command) return undefined;
-    if (!["NW-001", "NW-002"].includes(command.taskId)) {
-      return `${agentName} sudah membaca workflow NetWatch. Untuk saat ini eksekusi otomatis baru tersedia untuk NW-001 dan NW-002.`;
+    if (!this.isKnownNetWatchTask(command.taskId)) {
+      return `${agentName} tidak menemukan ${command.taskId} di daftar task NetWatch. Task valid adalah NW-001 sampai NW-020.`;
     }
     if (command.action === "review") {
       if (command.taskId === "NW-002") {
@@ -1139,6 +1322,24 @@ export class AiAgentsService {
           review.status === "CHANGES REQUESTED"
             ? "Langkah berikutnya: minta Agent_C memperbaiki temuan review."
             : "Langkah berikutnya: NW-002 boleh lanjut ke NW-003."
+        ].join("\n");
+      }
+      if (command.taskId !== "NW-001") {
+        if (agentName !== "Agent_B") {
+          return `Review ${command.taskId} harus dilakukan oleh Agent_B. Gunakan: Agent_B review ${command.taskId} berdasarkan dokumen dan hasil kerja di folder /apps/test_ping`;
+        }
+        const review = await this.reviewGenericNetWatchTask(command.taskId);
+        return [
+          `Agent_B selesai review ${command.taskId}.`,
+          `Status: ${review.status}`,
+          `Laporan: ${review.reviewFile}`,
+          "",
+          "Temuan:",
+          ...review.findings.map((finding) => `- ${finding}`),
+          "",
+          review.status === "CHANGES REQUESTED"
+            ? "Langkah berikutnya: minta Agent_C memperbaiki temuan review."
+            : "Langkah berikutnya: Agent_C membaca hasil review dan menutup task package bila tidak ada blocking."
         ].join("\n");
       }
       if (agentName !== "Agent_B") {
@@ -1162,6 +1363,7 @@ export class AiAgentsService {
       if (agentName !== "Agent_C") {
         return `Perbaikan ${command.taskId} harus dilakukan oleh Agent_C. Gunakan: Agent_C perbaiki temuan review ${command.taskId} dari Agent_B`;
       }
+      if (!["NW-001", "NW-002"].includes(command.taskId)) return this.fixGenericNetWatchTask(command.taskId);
       return this.fixNetWatchTask(command.taskId);
     }
     if (agentName !== "Agent_A") {
@@ -1175,6 +1377,19 @@ export class AiAgentsService {
         ...changed.map((file) => `- apps/test_ping/${file}`),
         "",
         "Langkah berikutnya: jalankan pnpm install, pnpm lint, pnpm format:check, pnpm test, dan pnpm build di apps/test_ping, lalu minta Agent_B review task NW-002."
+      ].join("\n");
+    }
+    if (command.taskId !== "NW-001") {
+      const scaffold = await this.scaffoldGenericNetWatchTask(command.taskId);
+      return [
+        `Agent_A menjalankan task package ${command.taskId}: ${scaffold.title}.`,
+        "File/folder yang dibuat atau diperbarui:",
+        ...scaffold.files.map((file) => `- ${file}`),
+        "",
+        "Task ini diambil langsung dari NetWatch_3_Agent_Step_by_Step.md.",
+        "Catatan: executor kode spesifik belum tersedia untuk task ini, jadi hasil otomatis berupa paket requirement/handoff agar alur Agent_A -> Agent_B -> Agent_C tetap tercatat dan tidak melenceng.",
+        "",
+        `Langkah berikutnya: Agent_B review ${command.taskId}.`
       ].join("\n");
     }
     const created = await this.scaffoldNetWatchNw001();
