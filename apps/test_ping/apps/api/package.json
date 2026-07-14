@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "build": "node --check src/server.js",
-    "lint": "node --check src/server.js",
-    "test": "NODE_ENV=test node --test"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "NODE_ENV=test node --test",
+    "test:watch": "NODE_ENV=test node --test --watch"
   },
   "dependencies": {
     "cors": "^2.8.5",

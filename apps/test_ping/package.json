@@ -2,11 +2,22 @@
   "name": "@netwatch/root",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "lint:fix": "pnpm -r lint:fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "test": "pnpm -r test",
+    "test:watch": "pnpm -r --parallel test:watch"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "eslint": "^9.30.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2"
   },
   "packageManager": "pnpm@9.15.0"
 }

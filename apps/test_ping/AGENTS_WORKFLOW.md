@@ -6,13 +6,13 @@
 
 Agent_A bertanggung jawab untuk:
 
-* Membuat struktur proyek.
-* Menulis kode frontend dan backend.
-* Membuat database dan migration.
-* Menambahkan fitur.
-* Menjalankan build, lint, dan test.
-* Membuat commit setelah tugas selesai.
-* Menyerahkan hasil kepada Agent_B.
+- Membuat struktur proyek.
+- Menulis kode frontend dan backend.
+- Membuat database dan migration.
+- Menambahkan fitur.
+- Menjalankan build, lint, dan test.
+- Membuat commit setelah tugas selesai.
+- Menyerahkan hasil kepada Agent_B.
 
 Agent_A tidak melakukan penilaian akhir terhadap kodenya sendiri.
 
@@ -20,13 +20,13 @@ Agent_A tidak melakukan penilaian akhir terhadap kodenya sendiri.
 
 Agent_B bertanggung jawab untuk:
 
-* Memeriksa kode yang dibuat Agent_A.
-* Mencari bug, celah keamanan, dan kesalahan logika.
-* Memeriksa kesesuaian dengan requirement.
-* Memeriksa struktur kode dan kualitas implementasi.
-* Menjalankan test ulang.
-* Memberikan rekomendasi perbaikan yang jelas.
-* Tidak mengubah kode secara langsung.
+- Memeriksa kode yang dibuat Agent_A.
+- Mencari bug, celah keamanan, dan kesalahan logika.
+- Memeriksa kesesuaian dengan requirement.
+- Memeriksa struktur kode dan kualitas implementasi.
+- Menjalankan test ulang.
+- Memberikan rekomendasi perbaikan yang jelas.
+- Tidak mengubah kode secara langsung.
 
 Agent_B hanya menghasilkan laporan review.
 
@@ -34,12 +34,12 @@ Agent_B hanya menghasilkan laporan review.
 
 Agent_C bertanggung jawab untuk:
 
-* Membaca laporan Agent_B.
-* Memperbaiki kode sesuai rekomendasi.
-* Tidak menambahkan fitur yang tidak diminta.
-* Menjalankan lint, test, dan build.
-* Membuat commit perbaikan.
-* Menyerahkan hasil kembali kepada Agent_B untuk verifikasi.
+- Membaca laporan Agent_B.
+- Memperbaiki kode sesuai rekomendasi.
+- Tidak menambahkan fitur yang tidak diminta.
+- Menjalankan lint, test, dan build.
+- Membuat commit perbaikan.
+- Menyerahkan hasil kembali kepada Agent_B untuk verifikasi.
 
 ---
 
@@ -130,11 +130,11 @@ Acceptance Criteria:
 
 Agent_A dan Agent_C tidak boleh:
 
-* Menambahkan fitur di luar task.
-* Mengubah struktur besar tanpa alasan.
-* Menghapus fitur lama.
-* Mengganti teknologi tanpa persetujuan.
-* Mengabaikan acceptance criteria.
+- Menambahkan fitur di luar task.
+- Mengubah struktur besar tanpa alasan.
+- Menghapus fitur lama.
+- Mengganti teknologi tanpa persetujuan.
+- Mengabaikan acceptance criteria.
 
 ---
 
@@ -321,14 +321,14 @@ Semua rekomendasi Agent_B telah ditangani.
 
 Mengerjakan:
 
-* Membuat monorepo.
-* Membuat folder frontend dan backend.
-* Mengatur pnpm workspace.
-* Menambahkan ESLint.
-* Menambahkan Prettier.
-* Menambahkan environment example.
-* Membuat endpoint `/health`.
-* Membuat README awal.
+- Membuat monorepo.
+- Membuat folder frontend dan backend.
+- Mengatur pnpm workspace.
+- Menambahkan ESLint.
+- Menambahkan Prettier.
+- Menambahkan environment example.
+- Membuat endpoint `/health`.
+- Membuat README awal.
 
 Target struktur:
 
@@ -348,22 +348,22 @@ netwatch/
 
 Memeriksa:
 
-* Struktur folder.
-* Script build.
-* Script lint.
-* Script test.
-* Environment variable.
-* Endpoint health.
-* Dependency yang tidak diperlukan.
+- Struktur folder.
+- Script build.
+- Script lint.
+- Script test.
+- Environment variable.
+- Endpoint health.
+- Dependency yang tidak diperlukan.
 
 #### Agent_C
 
 Memperbaiki:
 
-* Kesalahan konfigurasi.
-* Script yang gagal.
-* Struktur yang tidak konsisten.
-* Masalah dependency.
+- Kesalahan konfigurasi.
+- Script yang gagal.
+- Struktur yang tidak konsisten.
+- Masalah dependency.
 
 Definition of Done:
 
@@ -385,12 +385,12 @@ GET /health mengembalikan 200
 
 Mengerjakan:
 
-* Memasang Prisma.
-* Menghubungkan SQLite.
-* Membuat schema.
-* Membuat migration.
-* Membuat seed admin.
-* Membuat seed perangkat contoh.
+- Memasang Prisma.
+- Menghubungkan SQLite.
+- Membuat schema.
+- Membuat migration.
+- Membuat seed admin.
+- Membuat seed perangkat contoh.
 
 Model awal:
 
@@ -408,23 +408,23 @@ ApplicationSetting
 
 Memeriksa:
 
-* Relasi tabel.
-* Index database.
-* Cascade delete.
-* Default value.
-* Enum status.
-* Field nullable.
-* Migration dapat dijalankan dari awal.
+- Relasi tabel.
+- Index database.
+- Cascade delete.
+- Default value.
+- Enum status.
+- Field nullable.
+- Migration dapat dijalankan dari awal.
 
 #### Agent_C
 
 Memperbaiki:
 
-* Relasi salah.
-* Index yang kurang.
-* Migration error.
-* Seed tidak idempotent.
-* Nama field yang tidak konsisten.
+- Relasi salah.
+- Index yang kurang.
+- Migration error.
+- Seed tidak idempotent.
+- Nama field yang tidak konsisten.
 
 Definition of Done:
 
@@ -446,24 +446,24 @@ Prisma Client dapat digunakan
 
 Mengerjakan:
 
-* Login.
-* Logout.
-* Endpoint current user.
-* Password hashing.
-* Authentication middleware.
-* Halaman login.
-* Protected route.
+- Login.
+- Logout.
+- Endpoint current user.
+- Password hashing.
+- Authentication middleware.
+- Halaman login.
+- Protected route.
 
 #### Agent_B
 
 Memeriksa:
 
-* Password tidak disimpan sebagai plaintext.
-* Token atau session aman.
-* Error login tidak membocorkan informasi.
-* Ada rate limiting.
-* Protected endpoint tidak dapat diakses tanpa login.
-* Cookie aman jika menggunakan session.
+- Password tidak disimpan sebagai plaintext.
+- Token atau session aman.
+- Error login tidak membocorkan informasi.
+- Ada rate limiting.
+- Protected endpoint tidak dapat diakses tanpa login.
+- Cookie aman jika menggunakan session.
 
 #### Agent_C
 
@@ -489,25 +489,25 @@ Test authentication lulus
 
 Mengerjakan:
 
-* Daftar perangkat.
-* Tambah perangkat.
-* Edit perangkat.
-* Hapus perangkat.
-* Aktifkan atau nonaktifkan perangkat.
-* Filter berdasarkan grup dan status.
-* Validasi IP, hostname, port, dan URL.
+- Daftar perangkat.
+- Tambah perangkat.
+- Edit perangkat.
+- Hapus perangkat.
+- Aktifkan atau nonaktifkan perangkat.
+- Filter berdasarkan grup dan status.
+- Validasi IP, hostname, port, dan URL.
 
 #### Agent_B
 
 Memeriksa:
 
-* Validasi input.
-* Duplicate host.
-* Status default.
-* Authorization.
-* Error handling.
-* Test CRUD.
-* Data frontend sesuai response backend.
+- Validasi input.
+- Duplicate host.
+- Status default.
+- Authorization.
+- Error handling.
+- Test CRUD.
+- Data frontend sesuai response backend.
 
 #### Agent_C
 
@@ -533,24 +533,24 @@ Test lulus
 
 Mengerjakan:
 
-* Fungsi ICMP ping.
-* Timeout.
-* Penyimpanan latency.
-* Penyimpanan error.
-* Manual check.
-* Worker scheduler.
+- Fungsi ICMP ping.
+- Timeout.
+- Penyimpanan latency.
+- Penyimpanan error.
+- Manual check.
+- Worker scheduler.
 
 #### Agent_B
 
 Memeriksa:
 
-* Input host aman.
-* Tidak ada command injection.
-* Timeout bekerja.
-* Worker tidak overlap.
-* Concurrency dibatasi.
-* Error ditangani.
-* Monitoring result tersimpan.
+- Input host aman.
+- Tidak ada command injection.
+- Timeout bekerja.
+- Worker tidak overlap.
+- Concurrency dibatasi.
+- Error ditangani.
+- Monitoring result tersimpan.
 
 #### Agent_C
 
@@ -572,21 +572,21 @@ Scheduler tidak menjalankan task ganda
 
 Menambahkan:
 
-* TCP socket check.
-* Port validation.
-* Timeout.
-* Latency.
-* Error connection refused.
+- TCP socket check.
+- Port validation.
+- Timeout.
+- Latency.
+- Error connection refused.
 
 #### Agent_B
 
 Memeriksa:
 
-* Socket selalu ditutup.
-* Tidak ada memory leak.
-* Timeout bekerja.
-* Port invalid ditolak.
-* Test port terbuka dan tertutup.
+- Socket selalu ditutup.
+- Tidak ada memory leak.
+- Timeout bekerja.
+- Port invalid ditolak.
+- Test port terbuka dan tertutup.
 
 #### Agent_C
 
@@ -598,23 +598,23 @@ Memperbaiki berdasarkan review.
 
 Menambahkan:
 
-* HTTP dan HTTPS check.
-* Timeout.
-* Expected status code.
-* Redirect limit.
-* Latency.
-* Error response.
+- HTTP dan HTTPS check.
+- Timeout.
+- Expected status code.
+- Redirect limit.
+- Latency.
+- Error response.
 
 #### Agent_B
 
 Memeriksa:
 
-* Risiko SSRF.
-* Protocol restriction.
-* Redirect.
-* Timeout.
-* Response body tidak dibaca berlebihan.
-* URL validation.
+- Risiko SSRF.
+- Protocol restriction.
+- Redirect.
+- Timeout.
+- Response body tidak dibaca berlebihan.
+- URL validation.
 
 #### Agent_C
 
@@ -652,13 +652,13 @@ Logika awal:
 
 Memeriksa:
 
-* Failure threshold.
-* Recovery threshold.
-* Latency warning.
-* Status maintenance.
-* Status disabled.
-* Race condition.
-* Test seluruh transition.
+- Failure threshold.
+- Recovery threshold.
+- Latency warning.
+- Status maintenance.
+- Status disabled.
+- Race condition.
+- Test seluruh transition.
 
 #### Agent_C
 
@@ -679,21 +679,21 @@ Semua transition memiliki test
 
 Mengerjakan:
 
-* Membuka incident saat offline.
-* Menutup incident saat recovery.
-* Menghitung downtime.
-* Menyimpan error awal.
-* Mencegah duplicate incident.
+- Membuka incident saat offline.
+- Menutup incident saat recovery.
+- Menghitung downtime.
+- Menyimpan error awal.
+- Mencegah duplicate incident.
 
 #### Agent_B
 
 Memeriksa:
 
-* Satu perangkat hanya memiliki satu incident aktif.
-* Downtime benar.
-* Recovery menutup incident.
-* Restart aplikasi tidak membuat duplicate.
-* Transaction database digunakan jika perlu.
+- Satu perangkat hanya memiliki satu incident aktif.
+- Downtime benar.
+- Recovery menutup incident.
+- Restart aplikasi tidak membuat duplicate.
+- Transaction database digunakan jika perlu.
 
 #### Agent_C
 
@@ -709,25 +709,25 @@ Memperbaiki incident logic.
 
 Mengerjakan:
 
-* Socket.IO server.
-* Socket.IO client.
-* Event perubahan perangkat.
-* Summary card.
-* Tabel perangkat.
-* Filter.
-* Waktu last check.
-* Durasi downtime.
+- Socket.IO server.
+- Socket.IO client.
+- Event perubahan perangkat.
+- Summary card.
+- Tabel perangkat.
+- Filter.
+- Waktu last check.
+- Durasi downtime.
 
 #### Agent_B
 
 Memeriksa:
 
-* Socket reconnect.
-* Listener tidak terdaftar berulang.
-* Data tidak duplikat.
-* Status frontend sesuai backend.
-* Dashboard tidak perlu reload.
-* Tampilan tetap berfungsi saat WebSocket putus.
+- Socket reconnect.
+- Listener tidak terdaftar berulang.
+- Data tidak duplikat.
+- Status frontend sesuai backend.
+- Dashboard tidak perlu reload.
+- Tampilan tetap berfungsi saat WebSocket putus.
 
 #### Agent_C
 
@@ -752,24 +752,24 @@ Tidak ada duplicate event
 
 Mengerjakan:
 
-* Konfigurasi bot token.
-* Konfigurasi chat ID.
-* Tombol test notification.
-* Offline notification.
-* Recovery notification.
-* Notification log.
-* Anti-spam.
+- Konfigurasi bot token.
+- Konfigurasi chat ID.
+- Tombol test notification.
+- Offline notification.
+- Recovery notification.
+- Notification log.
+- Anti-spam.
 
 #### Agent_B
 
 Memeriksa:
 
-* Token tidak dikirim ke frontend.
-* Token tidak masuk Git.
-* Notifikasi hanya pada perubahan status.
-* Recovery dikirim sekali.
-* Error Telegram tidak menghentikan worker.
-* Pesan tidak berisi HTML yang tidak aman.
+- Token tidak dikirim ke frontend.
+- Token tidak masuk Git.
+- Notifikasi hanya pada perubahan status.
+- Recovery dikirim sekali.
+- Error Telegram tidak menghentikan worker.
+- Pesan tidak berisi HTML yang tidak aman.
 
 #### Agent_C
 
@@ -795,24 +795,24 @@ Kegagalan Telegram tidak menghentikan monitoring
 
 Mengerjakan:
 
-* Riwayat hasil check.
-* Riwayat incident.
-* Filter tanggal.
-* Grafik latency.
-* Perhitungan uptime.
-* Data retention.
+- Riwayat hasil check.
+- Riwayat incident.
+- Filter tanggal.
+- Grafik latency.
+- Perhitungan uptime.
+- Data retention.
 
 #### Agent_B
 
 Memeriksa:
 
-* Rumus uptime.
-* Query database.
-* Pagination.
-* Performa.
-* Timezone.
-* Retention cleanup.
-* Grafik tidak memuat terlalu banyak data.
+- Rumus uptime.
+- Query database.
+- Pagination.
+- Performa.
+- Timezone.
+- Retention cleanup.
+- Grafik tidak memuat terlalu banyak data.
 
 #### Agent_C
 
@@ -828,26 +828,26 @@ Memperbaiki query dan perhitungan.
 
 Mengerjakan:
 
-* Dockerfile backend.
-* Dockerfile frontend.
-* Docker Compose.
-* SQLite volume.
-* Environment production.
-* Restart policy.
-* Health check.
-* Capability ICMP.
+- Dockerfile backend.
+- Dockerfile frontend.
+- Docker Compose.
+- SQLite volume.
+- Environment production.
+- Restart policy.
+- Health check.
+- Capability ICMP.
 
 #### Agent_B
 
 Memeriksa:
 
-* Database persisten.
-* Secret tidak masuk image.
-* Container berjalan sebagai user non-root jika memungkinkan.
-* Port exposure.
-* Restart.
-* ICMP bekerja dalam container.
-* Build production berhasil.
+- Database persisten.
+- Secret tidak masuk image.
+- Container berjalan sebagai user non-root jika memungkinkan.
+- Port exposure.
+- Restart.
+- ICMP bekerja dalam container.
+- Build production berhasil.
 
 #### Agent_C
 
@@ -1125,13 +1125,13 @@ Menyiapkan skenario end-to-end:
 
 Melakukan final audit:
 
-* Feature audit.
-* Security audit.
-* Database audit.
-* Worker audit.
-* Notification audit.
-* Deployment audit.
-* Acceptance criteria audit.
+- Feature audit.
+- Security audit.
+- Database audit.
+- Worker audit.
+- Notification audit.
+- Deployment audit.
+- Acceptance criteria audit.
 
 ## Agent_C
 

@@ -117,14 +117,14 @@ Data hasil pemeriksaan:
 
 Status perangkat:
 
-| Status | Keterangan |
-|---|---|
-| `UNKNOWN` | Belum pernah diperiksa |
-| `ONLINE` | Perangkat merespons normal |
-| `WARNING` | Latency tinggi atau mulai mengalami kegagalan |
-| `OFFLINE` | Gagal setelah melewati failure threshold |
-| `MAINTENANCE` | Perangkat sedang dalam pemeliharaan |
-| `DISABLED` | Monitoring dinonaktifkan |
+| Status        | Keterangan                                    |
+| ------------- | --------------------------------------------- |
+| `UNKNOWN`     | Belum pernah diperiksa                        |
+| `ONLINE`      | Perangkat merespons normal                    |
+| `WARNING`     | Latency tinggi atau mulai mengalami kegagalan |
+| `OFFLINE`     | Gagal setelah melewati failure threshold      |
+| `MAINTENANCE` | Perangkat sedang dalam pemeliharaan           |
+| `DISABLED`    | Monitoring dinonaktifkan                      |
 
 ### 4.5 Dashboard Real-Time
 
@@ -304,13 +304,13 @@ Tujuannya untuk mencegah status naik-turun terlalu cepat.
 
 Contoh nilai awal:
 
-| Latency | Status |
-|---|---|
-| 0–50 ms | Normal |
-| 51–150 ms | Sedang |
-| 151–300 ms | Lambat |
+| Latency        | Status        |
+| -------------- | ------------- |
+| 0–50 ms        | Normal        |
+| 51–150 ms      | Sedang        |
+| 151–300 ms     | Lambat        |
 | Di atas 300 ms | Sangat lambat |
-| Timeout | Gagal |
+| Timeout        | Gagal         |
 
 Batas latency harus dapat disesuaikan untuk setiap perangkat.
 
@@ -371,19 +371,19 @@ export async function checkIcmp(host, timeoutSeconds = 2) {
   try {
     const result = await ping.promise.probe(host, {
       timeout: timeoutSeconds,
-      min_reply: 1,
+      min_reply: 1
     });
 
     return {
       success: result.alive,
       latency: result.alive ? Number(result.time) : null,
-      error: result.alive ? null : "ICMP timeout",
+      error: result.alive ? null : "ICMP timeout"
     };
   } catch (error) {
     return {
       success: false,
       latency: null,
-      error: error instanceof Error ? error.message : "Unknown ICMP error",
+      error: error instanceof Error ? error.message : "Unknown ICMP error"
     };
   }
 }
@@ -423,7 +423,7 @@ export function checkTcp(host, port, timeoutMs = 2000) {
       finish({
         success: true,
         latency: Date.now() - startedAt,
-        error: null,
+        error: null
       });
     });
 
@@ -431,7 +431,7 @@ export function checkTcp(host, port, timeoutMs = 2000) {
       finish({
         success: false,
         latency: null,
-        error: "TCP timeout",
+        error: "TCP timeout"
       });
     });
 
@@ -439,7 +439,7 @@ export function checkTcp(host, port, timeoutMs = 2000) {
       finish({
         success: false,
         latency: null,
-        error: error.message,
+        error: error.message
       });
     });
 
@@ -463,21 +463,21 @@ export async function checkHttp(url, timeoutMs = 3000) {
   try {
     const response = await fetch(url, {
       method: "GET",
-      signal: controller.signal,
+      signal: controller.signal
     });
 
     return {
       success: response.ok,
       latency: Date.now() - startedAt,
       statusCode: response.status,
-      error: response.ok ? null : `HTTP ${response.status}`,
+      error: response.ok ? null : `HTTP ${response.status}`
     };
   } catch (error) {
     return {
       success: false,
       latency: null,
       statusCode: null,
-      error: error instanceof Error ? error.message : "HTTP request failed",
+      error: error instanceof Error ? error.message : "HTTP request failed"
     };
   } finally {
     clearTimeout(timeout);
@@ -1004,9 +1004,7 @@ import pLimit from "p-limit";
 
 const limit = pLimit(20);
 
-const tasks = devices.map((device) =>
-  limit(() => monitorDevice(device))
-);
+const tasks = devices.map((device) => limit(() => monitorDevice(device)));
 
 await Promise.allSettled(tasks);
 ```
@@ -1052,20 +1050,17 @@ export async function sendTelegramMessage(message) {
     throw new Error("Telegram configuration is incomplete");
   }
 
-  const response = await fetch(
-    `https://api.telegram.org/bot${token}/sendMessage`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: "HTML",
-      }),
-    }
-  );
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: message,
+      parse_mode: "HTML"
+    })
+  });
 
   if (!response.ok) {
     throw new Error(`Telegram API returned ${response.status}`);
@@ -1138,17 +1133,17 @@ Maintenance  : 1
 
 Kolom yang disarankan:
 
-| Kolom | Keterangan |
-|---|---|
-| Nama | Nama perangkat |
-| IP/Host | Alamat IP atau hostname |
-| Grup | Kelompok perangkat |
-| Metode | ICMP, TCP, atau HTTP |
-| Status | Online, warning, offline |
-| Latency | Latency terakhir |
+| Kolom      | Keterangan                 |
+| ---------- | -------------------------- |
+| Nama       | Nama perangkat             |
+| IP/Host    | Alamat IP atau hostname    |
+| Grup       | Kelompok perangkat         |
+| Metode     | ICMP, TCP, atau HTTP       |
+| Status     | Online, warning, offline   |
+| Latency    | Latency terakhir           |
 | Last Check | Waktu pemeriksaan terakhir |
-| Downtime | Lama offline |
-| Aksi | Detail, edit, check manual |
+| Downtime   | Lama offline               |
+| Aksi       | Detail, edit, check manual |
 
 ### 18.4 Filter
 

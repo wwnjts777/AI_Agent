@@ -1,3 +1,7 @@
-import test from "node:test";
+import { describe, expect, it } from "vitest";
 
-test("web test placeholder", () => {});
+describe("NetWatch test setup", () => {
+  it("runs Vitest from the web workspace", () => {
+    expect("NetWatch").toContain("Watch");
+  });
+});

@@ -290,6 +290,11 @@ export class AiAgentsService {
     }
   }
 
+  private async writeText(path: string, content: string) {
+    await mkdir(resolve(path, ".."), { recursive: true });
+    await writeFile(path, content, "utf8");
+  }
+
   private async fileExists(path: string) {
     try {
       const info = await stat(path);
@@ -317,6 +322,7 @@ export class AiAgentsService {
             name: "@netwatch/root",
             private: true,
             version: "0.1.0",
+            type: "module",
             scripts: {
               dev: "pnpm -r --parallel dev",
               build: "pnpm -r build",
@@ -466,6 +472,7 @@ export class AiAgentsService {
       [
         "apps/web/src/main.jsx",
         [
+          "import React from \"react\";",
           "import React from \"react\";",
           "import { createRoot } from \"react-dom/client\";",
           "import \"./styles.css\";",
@@ -620,14 +627,412 @@ export class AiAgentsService {
     };
   }
 
+  private async scaffoldNetWatchNw002() {
+    const root = this.netWatchRoot();
+    const files: Array<[string, string]> = [
+      [
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "@netwatch/root",
+            private: true,
+            version: "0.1.0",
+            scripts: {
+              dev: "pnpm -r --parallel dev",
+              build: "pnpm -r build",
+              lint: "pnpm -r lint",
+              "lint:fix": "pnpm -r lint:fix",
+              format: "prettier . --write",
+              "format:check": "prettier . --check",
+              test: "pnpm -r test",
+              "test:watch": "pnpm -r --parallel test:watch"
+            },
+            devDependencies: {
+              "@eslint/js": "^9.30.0",
+              eslint: "^9.30.0",
+              globals: "^15.14.0",
+              prettier: "^3.4.2"
+            },
+            packageManager: "pnpm@9.15.0"
+          },
+          null,
+          2
+        )}\n`
+      ],
+      [
+        "eslint.config.js",
+        [
+          "import js from \"@eslint/js\";",
+          "import globals from \"globals\";",
+          "",
+          "export default [",
+          "  {",
+          "    ignores: [\"**/node_modules/**\", \"**/dist/**\", \"**/coverage/**\"],",
+          "  },",
+          "  js.configs.recommended,",
+          "  {",
+          "    files: [\"**/*.{js,jsx}\"],",
+          "    languageOptions: {",
+          "      ecmaVersion: \"latest\",",
+          "      sourceType: \"module\",",
+          "      globals: {",
+          "        ...globals.browser,",
+          "        ...globals.node,",
+          "      },",
+          "      parserOptions: {",
+          "        ecmaFeatures: { jsx: true },",
+          "      },",
+          "    },",
+          "    rules: {",
+          "      \"no-unused-vars\": [\"error\", { argsIgnorePattern: \"^_\" }],",
+          "    },",
+          "  },",
+          "];",
+          ""
+        ].join("\n")
+      ],
+      [
+        ".prettierrc.json",
+        `${JSON.stringify(
+          {
+            printWidth: 100,
+            tabWidth: 2,
+            semi: true,
+            singleQuote: false,
+            trailingComma: "none"
+          },
+          null,
+          2
+        )}\n`
+      ],
+      [
+        ".prettierignore",
+        "node_modules\ndist\ncoverage\npnpm-lock.yaml\n"
+      ],
+      [
+        ".editorconfig",
+        [
+          "root = true",
+          "",
+          "[*]",
+          "charset = utf-8",
+          "end_of_line = lf",
+          "insert_final_newline = true",
+          "indent_style = space",
+          "indent_size = 2",
+          "trim_trailing_whitespace = true",
+          ""
+        ].join("\n")
+      ],
+      [
+        "apps/api/package.json",
+        `${JSON.stringify(
+          {
+            name: "@netwatch/api",
+            private: true,
+            version: "0.1.0",
+            type: "module",
+            scripts: {
+              dev: "node --watch src/server.js",
+              build: "node --check src/server.js",
+              lint: "eslint .",
+              "lint:fix": "eslint . --fix",
+              test: "NODE_ENV=test node --test",
+              "test:watch": "NODE_ENV=test node --test --watch"
+            },
+            dependencies: {
+              cors: "^2.8.5",
+              express: "^4.19.2"
+            },
+            devDependencies: {
+              "@types/node": "^20.18.2"
+            }
+          },
+          null,
+          2
+        )}\n`
+      ],
+      [
+        "apps/web/package.json",
+        `${JSON.stringify(
+          {
+            name: "@netwatch/web",
+            private: true,
+            version: "0.1.0",
+            type: "module",
+            scripts: {
+              dev: "vite --host 0.0.0.0 --port ${WEB_PORT:-4100}",
+              build: "vite build",
+              lint: "eslint .",
+              "lint:fix": "eslint . --fix",
+              test: "vitest run",
+              "test:watch": "vitest --watch"
+            },
+            dependencies: {
+              "@vitejs/plugin-react": "^4.3.4",
+              vite: "^5.4.19",
+              react: "^18.3.1",
+              "react-dom": "^18.3.1"
+            },
+            devDependencies: {
+              vitest: "^2.1.8"
+            }
+          },
+          null,
+          2
+        )}\n`
+      ],
+      [
+        "apps/web/src/main.jsx",
+        [
+          "import { createRoot } from \"react-dom/client\";",
+          "import \"./styles.css\";",
+          "",
+          "export function App() {",
+          "  return React.createElement(",
+          "    \"main\",",
+          "    { className: \"app-shell\" },",
+          "    React.createElement(",
+          "      \"section\",",
+          "      { className: \"hero\" },",
+          "      React.createElement(\"p\", null, \"NetWatch\"),",
+          "      React.createElement(\"h1\", null, \"Dashboard monitoring IP\"),",
+          "      React.createElement(\"span\", null, \"Project setup siap. Lanjutkan task NW-003 untuk database dan Prisma.\")",
+          "    )",
+          "  );",
+          "}",
+          "",
+          "const rootElement = typeof document !== \"undefined\" ? document.getElementById(\"root\") : null;",
+          "if (rootElement) {",
+          "  createRoot(rootElement).render(<App />);",
+          "}",
+          ""
+        ].join("\n")
+      ],
+      [
+        "apps/web/test/basic.test.jsx",
+        [
+          "import React from \"react\";",
+          "import { renderToStaticMarkup } from \"react-dom/server\";",
+          "import { describe, expect, it } from \"vitest\";",
+          "import { App } from \"../src/main.jsx\";",
+          "",
+          "describe(\"NetWatch landing shell\", () => {",
+          "  it(\"renders the dashboard title\", () => {",
+          "    const html = renderToStaticMarkup(React.createElement(App));",
+          "    expect(html).toContain(\"Dashboard monitoring IP\");",
+          "    expect(html).toContain(\"NetWatch\");",
+          "  });",
+          "});",
+          ""
+        ].join("\n")
+      ],
+      [
+        "docs/requirements/NW-002.md",
+        [
+          "# NW-002 Code Quality dan Testing Foundation",
+          "",
+          "Acceptance Criteria mengikuti NetWatch_3_Agent_Step_by_Step.md.",
+          "",
+          "- ESLint aktif.",
+          "- Prettier aktif.",
+          "- Test backend aktif.",
+          "- Test frontend aktif dan tidak hanya placeholder.",
+          "- Script root tersedia untuk lint, lint:fix, format, format:check, test, test:watch, dan build.",
+          ""
+        ].join("\n")
+      ],
+      [
+        "docs/decisions/ADR-001-code-style.md",
+        [
+          "# ADR-001 Code Style",
+          "",
+          "Status: Accepted",
+          "",
+          "## Context",
+          "",
+          "NetWatch membutuhkan standar format, lint, dan test yang konsisten sebelum fitur monitoring dibangun.",
+          "",
+          "## Decision",
+          "",
+          "- Gunakan ESLint flat config dari root workspace.",
+          "- Gunakan Prettier untuk formatting.",
+          "- Backend memakai Node test runner untuk test endpoint.",
+          "- Frontend memakai Vitest untuk test komponen React.",
+          "- Script kualitas dijalankan dari root memakai pnpm workspace.",
+          "",
+          "## Consequences",
+          "",
+          "- Task berikutnya wajib menjaga `pnpm lint`, `pnpm format:check`, `pnpm test`, dan `pnpm build` tetap hijau.",
+          "- Aturan yang lebih spesifik dapat ditambahkan saat kompleksitas fitur meningkat.",
+          ""
+        ].join("\n")
+      ],
+      [
+        "docs/handoffs/NW-002-agent-a.md",
+        [
+          "# Agent A Handoff",
+          "",
+          "Task ID: NW-002",
+          "Status: Ready for Review",
+          "",
+          "## Yang Dikerjakan",
+          "",
+          "- Menambahkan ESLint flat config.",
+          "- Menambahkan Prettier config dan ignore file.",
+          "- Menambahkan EditorConfig.",
+          "- Mengganti lint frontend dari Vite build menjadi ESLint.",
+          "- Menambahkan Vitest untuk test frontend dasar.",
+          "- Menambahkan script root lint:fix, format, format:check, dan test:watch.",
+          "- Menulis ADR-001 code style.",
+          "",
+          "## Test",
+          "",
+          "- pnpm install: perlu dijalankan setelah dependency baru ditulis",
+          "- pnpm lint: perlu dijalankan",
+          "- pnpm format:check: perlu dijalankan",
+          "- pnpm test: perlu dijalankan",
+          "- pnpm build: perlu dijalankan",
+          "",
+          "## Catatan",
+          "",
+          "Jalankan pemeriksaan lokal, update status PASS, lalu minta Agent_B review NW-002.",
+          ""
+        ].join("\n")
+      ]
+    ];
+
+    const oldPlaceholder = resolve(root, "apps/web/test/basic.test.js");
+    const createdOrUpdated: string[] = [];
+    for (const [relativePath, content] of files) {
+      await this.writeText(resolve(root, relativePath), content);
+      createdOrUpdated.push(relativePath);
+    }
+    if (await this.fileExists(oldPlaceholder)) {
+      await writeFile(
+        oldPlaceholder,
+        [
+          "import { describe, expect, it } from \"vitest\";",
+          "",
+          "describe(\"NetWatch test setup\", () => {",
+          "  it(\"runs Vitest from the web workspace\", () => {",
+          "    expect(\"NetWatch\").toContain(\"Watch\");",
+          "  });",
+          "});",
+          ""
+        ].join("\n"),
+        "utf8"
+      );
+    }
+    return createdOrUpdated;
+  }
+
+  private async reviewNetWatchNw002() {
+    const root = this.netWatchRoot();
+    const requiredFiles = [
+      "eslint.config.js",
+      ".prettierrc.json",
+      ".prettierignore",
+      ".editorconfig",
+      "docs/requirements/NW-002.md",
+      "docs/decisions/ADR-001-code-style.md",
+      "docs/handoffs/NW-002-agent-a.md",
+      "apps/web/test/basic.test.jsx"
+    ];
+    const missing: string[] = [];
+    for (const file of requiredFiles) {
+      if (!(await this.fileExists(resolve(root, file)))) missing.push(file);
+    }
+
+    const rootPackage = await this.readTextIfExists(resolve(root, "package.json"));
+    const apiPackage = await this.readTextIfExists(resolve(root, "apps/api/package.json"));
+    const webPackage = await this.readTextIfExists(resolve(root, "apps/web/package.json"));
+    const frontendTest = await this.readTextIfExists(resolve(root, "apps/web/test/basic.test.jsx"));
+    const handoff = await this.readTextIfExists(resolve(root, "docs/handoffs/NW-002-agent-a.md"));
+    const missingChecks = [
+      ["root package belum punya script lint:fix", rootPackage.includes("\"lint:fix\"")],
+      ["root package belum punya script format:check", rootPackage.includes("\"format:check\"")],
+      ["root package belum punya script test:watch", rootPackage.includes("\"test:watch\"")],
+      ["API package belum memakai ESLint", apiPackage.includes("\"lint\": \"eslint .\"")],
+      ["Web package belum memakai ESLint", webPackage.includes("\"lint\": \"eslint .\"")],
+      ["Web package belum memakai Vitest", webPackage.includes("vitest")],
+      ["Test frontend masih terlihat placeholder", frontendTest.includes("renderToStaticMarkup") && !frontendTest.toLowerCase().includes("placeholder")],
+      ["handoff belum mencatat pnpm install PASS", handoff.includes("pnpm install: PASS")],
+      ["handoff belum mencatat pnpm lint PASS", handoff.includes("pnpm lint: PASS")],
+      ["handoff belum mencatat pnpm format:check PASS", handoff.includes("pnpm format:check: PASS")],
+      ["handoff belum mencatat pnpm test PASS", handoff.includes("pnpm test: PASS")],
+      ["handoff belum mencatat pnpm build PASS", handoff.includes("pnpm build: PASS")]
+    ]
+      .filter(([, ok]) => !ok)
+      .map(([message]) => message as string);
+
+    const status = missing.length || missingChecks.length ? "CHANGES REQUESTED" : "APPROVED";
+    const findings = [
+      ...missing.map((file) => `Major: file wajib belum ada: ${file}`),
+      ...missingChecks.map((check) => `Major: ${check}`)
+    ];
+
+    const report = [
+      "# Agent B Review",
+      "",
+      "Task ID: NW-002",
+      `Status: ${status}`,
+      "",
+      "## Scope Review",
+      "",
+      "- ESLint, Prettier, EditorConfig.",
+      "- Script kualitas dari root workspace.",
+      "- Test backend dan frontend dasar.",
+      "- ADR code style dan handoff Agent_A.",
+      "",
+      "## Temuan",
+      "",
+      findings.length ? findings.map((finding) => `- ${finding}`).join("\n") : "- Tidak ada temuan blocking.",
+      "",
+      "## Keputusan",
+      "",
+      status === "APPROVED"
+        ? "NW-002 disetujui. Project boleh lanjut ke NW-003 Database dan Prisma."
+        : "NW-002 belum boleh lanjut. Minta Agent_C memperbaiki temuan, lalu review ulang oleh Agent_B.",
+      ""
+    ].join("\n");
+
+    await mkdir(resolve(root, "docs/reviews"), { recursive: true });
+    await writeFile(resolve(root, "docs/reviews/NW-002-agent-b.md"), report, "utf8");
+
+    return {
+      status,
+      findings: findings.length ? findings : ["Tidak ada temuan blocking."],
+      reviewFile: "apps/test_ping/docs/reviews/NW-002-agent-b.md"
+    };
+  }
+
   private async netWatchWorkflowAnswer(agentName: string, prompt: string, agent: { workspaceAccess: boolean; workspaceRoot: string | null }) {
     if (!agent.workspaceAccess) return undefined;
     const command = this.netWatchTaskCommand(prompt);
     if (!command) return undefined;
-    if (command.taskId !== "NW-001") {
-      return `${agentName} sudah membaca workflow NetWatch. Untuk saat ini eksekusi otomatis baru tersedia untuk NW-001.`;
+    if (!["NW-001", "NW-002"].includes(command.taskId)) {
+      return `${agentName} sudah membaca workflow NetWatch. Untuk saat ini eksekusi otomatis baru tersedia untuk NW-001 dan NW-002.`;
     }
     if (command.action === "review") {
+      if (command.taskId === "NW-002") {
+        if (agentName !== "Agent_B") {
+          return `Review NW-002 harus dilakukan oleh Agent_B. Gunakan: Agent_B review NW-002 berdasarkan dokumen dan hasil kerja di folder /apps/test_ping`;
+        }
+        const review = await this.reviewNetWatchNw002();
+        return [
+          "Agent_B selesai review NW-002.",
+          `Status: ${review.status}`,
+          `Laporan: ${review.reviewFile}`,
+          "",
+          "Temuan:",
+          ...review.findings.map((finding) => `- ${finding}`),
+          "",
+          review.status === "CHANGES REQUESTED"
+            ? "Langkah berikutnya: minta Agent_C memperbaiki temuan review."
+            : "Langkah berikutnya: NW-002 boleh lanjut ke NW-003."
+        ].join("\n");
+      }
       if (agentName !== "Agent_B") {
         return `Review NW-001 harus dilakukan oleh Agent_B. Gunakan: Agent_B review NW-001 berdasarkan dokumen dan hasil kerja di folder /apps/test_ping`;
       }
@@ -646,10 +1051,20 @@ export class AiAgentsService {
       ].join("\n");
     }
     if (command.action === "fix") {
-      return `${agentName} mode fix: Agent_C membutuhkan laporan review Agent_B sebelum memperbaiki NW-001.`;
+      return `${agentName} mode fix: Agent_C membutuhkan laporan review Agent_B sebelum memperbaiki ${command.taskId}.`;
     }
     if (agentName !== "Agent_A") {
-      return `Task NW-001 harus dimulai oleh Agent_A. Gunakan: Agent_A mulai task NW-001`;
+      return `Task ${command.taskId} harus dimulai oleh Agent_A. Gunakan: Agent_A mulai task ${command.taskId}`;
+    }
+    if (command.taskId === "NW-002") {
+      const changed = await this.scaffoldNetWatchNw002();
+      return [
+        "Agent_A menjalankan task NW-002 Code Quality dan Testing Foundation.",
+        "File/folder yang dibuat atau diperbarui:",
+        ...changed.map((file) => `- apps/test_ping/${file}`),
+        "",
+        "Langkah berikutnya: jalankan pnpm install, pnpm lint, pnpm format:check, pnpm test, dan pnpm build di apps/test_ping, lalu minta Agent_B review task NW-002."
+      ].join("\n");
     }
     const created = await this.scaffoldNetWatchNw001();
     return [
