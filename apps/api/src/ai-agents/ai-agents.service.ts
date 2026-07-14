@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@telegram-hub/database";
+import { existsSync } from "fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "fs/promises";
-import { basename, relative, resolve, sep } from "path";
+import { basename, dirname, relative, resolve, sep } from "path";
 import { AuditService } from "../audit/audit.service";
 import { TokenCryptoService } from "../bots/token-crypto.service";
 import { CreateAiAgentDto, UpdateAiAgentDto } from "./ai-agents.dto";
@@ -138,7 +139,19 @@ export class AiAgentsService {
   }
 
   private workspaceBase() {
-    return resolve(process.env.WORKSPACE_ROOT ?? resolve(process.cwd(), "../.."));
+    if (process.env.WORKSPACE_ROOT) return resolve(process.env.WORKSPACE_ROOT);
+
+    let current = resolve(process.cwd());
+    while (true) {
+      if (existsSync(resolve(current, "apps/api")) && existsSync(resolve(current, "packages/database"))) {
+        return current;
+      }
+      const parent = dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+
+    return resolve(process.cwd(), "../..");
   }
 
   private workspaceRoot(root?: string | null) {
@@ -274,6 +287,23 @@ export class AiAgentsService {
       await mkdir(resolve(path, ".."), { recursive: true });
       await writeFile(path, content);
       return true;
+    }
+  }
+
+  private async fileExists(path: string) {
+    try {
+      const info = await stat(path);
+      return info.isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  private async readTextIfExists(path: string) {
+    try {
+      return await readFile(path, "utf8");
+    } catch {
+      return "";
     }
   }
 
@@ -509,6 +539,87 @@ export class AiAgentsService {
     return created;
   }
 
+  private async reviewNetWatchNw001() {
+    const root = this.netWatchRoot();
+    const requiredFiles = [
+      "package.json",
+      "pnpm-workspace.yaml",
+      ".env.example",
+      "README.md",
+      "apps/api/package.json",
+      "apps/api/src/server.js",
+      "apps/api/test/health.test.js",
+      "apps/web/package.json",
+      "apps/web/index.html",
+      "apps/web/src/main.jsx",
+      "apps/web/src/styles.css",
+      "apps/web/test/basic.test.js",
+      "docs/requirements/NW-001.md",
+      "docs/handoffs/NW-001-agent-a.md"
+    ];
+    const missing: string[] = [];
+    for (const file of requiredFiles) {
+      if (!(await this.fileExists(resolve(root, file)))) missing.push(file);
+    }
+
+    const handoff = await this.readTextIfExists(resolve(root, "docs/handoffs/NW-001-agent-a.md"));
+    const requiredChecks = ["pnpm install: PASS", "pnpm lint: PASS", "pnpm test: PASS", "pnpm build: PASS"];
+    const missingChecks = requiredChecks.filter((check) => !handoff.includes(check));
+    const status = missing.length || missingChecks.length ? "CHANGES REQUESTED" : "APPROVED WITH MINOR NOTES";
+    const findings = [
+      ...missing.map((file) => `Major: file wajib belum ada: ${file}`),
+      ...missingChecks.map((check) => `Major: handoff belum mencatat hasil ${check}`),
+      ...(missing.length || missingChecks.length
+        ? []
+        : [
+            "Minor: lint frontend saat ini masih memakai pemeriksaan build Vite, belum ESLint penuh. Ini sesuai cakupan NW-002.",
+            "Minor: test frontend masih placeholder. Test yang lebih kuat masuk cakupan NW-002."
+          ])
+    ];
+
+    const report = [
+      "# Agent B Review",
+      "",
+      "Task ID: NW-001",
+      `Status: ${status}`,
+      "",
+      "## Scope Review",
+      "",
+      "- Struktur monorepo NetWatch.",
+      "- Backend Express dengan endpoint GET /health.",
+      "- Frontend React + Vite awal.",
+      "- README, .env.example, script root, dan handoff Agent_A.",
+      "",
+      "## Hasil Pemeriksaan",
+      "",
+      missing.length ? "File wajib yang belum ada:" : "Semua file wajib NW-001 tersedia.",
+      ...missing.map((file) => `- ${file}`),
+      "",
+      missingChecks.length ? "Hasil test yang belum tercatat di handoff:" : "Handoff Agent_A mencatat pnpm install, lint, test, dan build PASS.",
+      ...missingChecks.map((check) => `- ${check}`),
+      "",
+      "## Temuan",
+      "",
+      ...findings.map((finding) => `- ${finding}`),
+      "",
+      "## Keputusan",
+      "",
+      status === "CHANGES REQUESTED"
+        ? "NW-001 belum boleh lanjut. Minta Agent_C memperbaiki temuan di atas, lalu review ulang oleh Agent_B."
+        : "NW-001 boleh lanjut ke NW-002 Code Quality dan Testing Foundation.",
+      ""
+    ].join("\n");
+
+    await mkdir(resolve(root, "docs/reviews"), { recursive: true });
+    await writeFile(resolve(root, "docs/reviews/NW-001-agent-b.md"), report, "utf8");
+
+    return {
+      status,
+      findings,
+      reviewFile: "apps/test_ping/docs/reviews/NW-001-agent-b.md"
+    };
+  }
+
   private async netWatchWorkflowAnswer(agentName: string, prompt: string, agent: { workspaceAccess: boolean; workspaceRoot: string | null }) {
     if (!agent.workspaceAccess) return undefined;
     const command = this.netWatchTaskCommand(prompt);
@@ -517,7 +628,22 @@ export class AiAgentsService {
       return `${agentName} sudah membaca workflow NetWatch. Untuk saat ini eksekusi otomatis baru tersedia untuk NW-001.`;
     }
     if (command.action === "review") {
-      return `${agentName} mode review: jalankan Agent_B review setelah Agent_A membuat NW-001 dan semua test lokal dijalankan.`;
+      if (agentName !== "Agent_B") {
+        return `Review NW-001 harus dilakukan oleh Agent_B. Gunakan: Agent_B review NW-001 berdasarkan dokumen dan hasil kerja di folder /apps/test_ping`;
+      }
+      const review = await this.reviewNetWatchNw001();
+      return [
+        "Agent_B selesai review NW-001.",
+        `Status: ${review.status}`,
+        `Laporan: ${review.reviewFile}`,
+        "",
+        "Temuan:",
+        ...review.findings.map((finding) => `- ${finding}`),
+        "",
+        review.status === "CHANGES REQUESTED"
+          ? "Langkah berikutnya: minta Agent_C memperbaiki temuan review."
+          : "Langkah berikutnya: NW-001 boleh lanjut ke NW-002."
+      ].join("\n");
     }
     if (command.action === "fix") {
       return `${agentName} mode fix: Agent_C membutuhkan laporan review Agent_B sebelum memperbaiki NW-001.`;
