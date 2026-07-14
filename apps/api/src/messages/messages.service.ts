@@ -91,6 +91,15 @@ export class MessagesService {
     return `${agentName} siap menerima perintah.`;
   }
 
+  private netWatchAutoCommand(text: string) {
+    const command = this.agentCommand(text);
+    if (command?.agentName !== "Agent_A" || !command.prompt) return undefined;
+    const taskMatch = command.prompt.match(/\b(NW-\d{3})\b/iu);
+    if (!taskMatch) return undefined;
+    if (!/(mulai|kerjakan|jalankan)/iu.test(command.prompt)) return undefined;
+    return { taskId: taskMatch[1].toUpperCase() };
+  }
+
   private chooseAgentAnswer() {
     return [
       "Agent tujuan belum disebutkan.",
@@ -110,46 +119,26 @@ export class MessagesService {
     });
   }
 
-  private async sendBotInteraction(input: {
-    sourceMessageId: string;
-    sourceTelegramMessageId?: string;
-    telegramChatId: string;
-    sourceBotId: string;
-    text: string;
-    actorUserId: string;
+  private async createAndSendBotReply(input: {
+    responder: {
+      id: string;
+      botId: string;
+      telegramChatId: string;
+      bot: { name: string };
+    };
+    clientRequestId: string;
+    answer: string;
   }) {
-    if (input.actorUserId === "bot-interaction") return;
-    const command = this.agentCommand(input.text);
-
-    const responder = await this.prisma.telegramChat.findFirst({
-      where: command
-        ? { telegramChatId: input.telegramChatId, bot: { name: command.agentName, isActive: true } }
-        : { telegramChatId: input.telegramChatId, bot: { isActive: true } },
-      orderBy: { createdAt: "asc" },
-      include: { bot: { select: { name: true } } }
-    });
-    if (!responder) return;
-    const answer =
-      !command
-        ? this.chooseAgentAnswer()
-        : !command.prompt
-          ? this.agentReadyAnswer(command.agentName)
-          : await this.botAnswerFor(command.prompt, responder.bot.name, await this.conversationContext(responder.id, input.sourceMessageId));
-    if (!answer) return;
-
-    const clientRequestId = input.sourceTelegramMessageId
-      ? `bot-reply-tg-${input.telegramChatId}-${input.sourceTelegramMessageId}-${responder.botId}`
-      : `bot-reply-${input.sourceMessageId}-${responder.botId}`;
-    const existing = await this.prisma.message.findUnique({ where: { clientRequestId } });
-    if (existing) return;
+    const existing = await this.prisma.message.findUnique({ where: { clientRequestId: input.clientRequestId } });
+    if (existing) return existing;
 
     let reply = await this.prisma.message.create({
       data: {
-        chatId: responder.id,
-        clientRequestId,
+        chatId: input.responder.id,
+        clientRequestId: input.clientRequestId,
         direction: "OUTBOUND",
         type: "TEXT",
-        content: answer,
+        content: input.answer,
         status: "PENDING",
         sentByUserId: "bot-interaction"
       }
@@ -159,7 +148,9 @@ export class MessagesService {
 
     try {
       reply = await this.prisma.message.update({ where: { id: reply.id }, data: { status: "SENDING" } });
-      const result = (await this.bots.sendMessage(responder.botId, responder.telegramChatId, answer)) as { message_id?: number };
+      const result = (await this.bots.sendMessage(input.responder.botId, input.responder.telegramChatId, input.answer)) as {
+        message_id?: number;
+      };
       reply = await this.prisma.message.update({
         where: { id: reply.id },
         data: {
@@ -185,6 +176,129 @@ export class MessagesService {
       });
     }
     this.events.emit("message.updated", reply);
+    return reply;
+  }
+
+  private async sendNetWatchAutoWorkflow(input: {
+    sourceMessageId: string;
+    sourceTelegramMessageId?: string;
+    telegramChatId: string;
+    taskId: string;
+  }) {
+    const responders = await this.prisma.telegramChat.findMany({
+      where: {
+        telegramChatId: input.telegramChatId,
+        bot: { name: { in: ["Agent_A", "Agent_B", "Agent_C"] }, isActive: true }
+      },
+      orderBy: { createdAt: "asc" },
+      include: { bot: { select: { name: true } } }
+    });
+    const byAgent = new Map(responders.map((responder) => [responder.bot.name, responder]));
+    const missingAgents = ["Agent_A", "Agent_B", "Agent_C"].filter((name) => !byAgent.has(name));
+    const sourceKey = input.sourceTelegramMessageId
+      ? `bot-auto-tg-${input.telegramChatId}-${input.sourceTelegramMessageId}`
+      : `bot-auto-${input.sourceMessageId}`;
+
+    if (!["NW-001", "NW-002"].includes(input.taskId)) {
+      const fallback = byAgent.get("Agent_A") ?? responders[0];
+      if (!fallback) return;
+      await this.createAndSendBotReply({
+        responder: fallback,
+        clientRequestId: `${sourceKey}-unsupported-task`,
+        answer: [
+          `Workflow otomatis ${input.taskId} belum tersedia.`,
+          "Task tetap harus mengikuti NetWatch_3_Agent_Step_by_Step.md.",
+          "Saat ini auto-run baru tersedia untuk NW-001 dan NW-002. Tambahkan implementasi task berikutnya dulu agar hasilnya tidak melenceng dari dokumen."
+        ].join("\n")
+      });
+      return;
+    }
+
+    if (missingAgents.length) {
+      const fallback = responders[0];
+      if (!fallback) return;
+      await this.createAndSendBotReply({
+        responder: fallback,
+        clientRequestId: `${sourceKey}-missing-agents`,
+        answer: [
+          `Workflow otomatis ${input.taskId} belum bisa dijalankan.`,
+          `Bot yang belum tersedia di chat ini: ${missingAgents.join(", ")}.`,
+          "Pastikan Agent_A, Agent_B, dan Agent_C sudah ada di channel/group lalu ulangi perintah."
+        ].join("\n")
+      });
+      return;
+    }
+
+    const steps = [
+      {
+        agentName: "Agent_A",
+        prompt: `mulai task ${input.taskId} di folder /apps/test_ping`
+      },
+      {
+        agentName: "Agent_B",
+        prompt: `review ${input.taskId} berdasarkan dokumen dan hasil kerja di folder /apps/test_ping`
+      },
+      {
+        agentName: "Agent_C",
+        prompt: `perbaiki temuan review ${input.taskId} dari Agent_B`
+      }
+    ];
+
+    for (const [index, step] of steps.entries()) {
+      const responder = byAgent.get(step.agentName);
+      if (!responder) continue;
+      const answer = await this.botAnswerFor(step.prompt, step.agentName, await this.conversationContext(responder.id, input.sourceMessageId));
+      if (!answer) continue;
+      await this.createAndSendBotReply({
+        responder,
+        clientRequestId: `${sourceKey}-${index + 1}-${step.agentName}`,
+        answer
+      });
+    }
+  }
+
+  private async sendBotInteraction(input: {
+    sourceMessageId: string;
+    sourceTelegramMessageId?: string;
+    telegramChatId: string;
+    sourceBotId: string;
+    text: string;
+    actorUserId: string;
+  }) {
+    if (input.actorUserId === "bot-interaction") return;
+    const autoCommand = this.netWatchAutoCommand(input.text);
+    if (autoCommand) {
+      await this.sendNetWatchAutoWorkflow({
+        sourceMessageId: input.sourceMessageId,
+        sourceTelegramMessageId: input.sourceTelegramMessageId,
+        telegramChatId: input.telegramChatId,
+        taskId: autoCommand.taskId
+      });
+      return;
+    }
+
+    const command = this.agentCommand(input.text);
+
+    const responder = await this.prisma.telegramChat.findFirst({
+      where: command
+        ? { telegramChatId: input.telegramChatId, bot: { name: command.agentName, isActive: true } }
+        : { telegramChatId: input.telegramChatId, bot: { isActive: true } },
+      orderBy: { createdAt: "asc" },
+      include: { bot: { select: { name: true } } }
+    });
+    if (!responder) return;
+    const answer =
+      !command
+        ? this.chooseAgentAnswer()
+        : !command.prompt
+          ? this.agentReadyAnswer(command.agentName)
+          : await this.botAnswerFor(command.prompt, responder.bot.name, await this.conversationContext(responder.id, input.sourceMessageId));
+    if (!answer) return;
+
+    const clientRequestId = input.sourceTelegramMessageId
+      ? `bot-reply-tg-${input.telegramChatId}-${input.sourceTelegramMessageId}-${responder.botId}`
+      : `bot-reply-${input.sourceMessageId}-${responder.botId}`;
+    await this.createAndSendBotReply({ responder, clientRequestId, answer });
   }
 
   async history(chatId: string, limit = 50, cursor?: string) {
